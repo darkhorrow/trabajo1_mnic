@@ -1,0 +1,73 @@
+/*  
+ Resolver el caso estacionario y el evolutivo con freefem el problema de calculo de temperatura
+    - conveccion aire u = 20 grados
+    - conveccion y radiacion fluido = 80 grados
+ 
+ Se disponen de dos materiales, cobre y aluminio
+ Puntos del cobres
+ a = (0,6) b = (0,3) c = (5,3) d = (5,6)
+
+ Puntos del aluminio
+ a = (0,0) b = (10,0) c = (10,6) d = (5,6) e = (5,3) f = (0,3)
+
+*/
+
+// Estudiamos el caso estacionario
+// Bordes del cobre
+
+border a (t=0,10) {x=t;y=0;label=3;};
+
+border b (t=0,6) {x=10;y=t;label=1;};
+
+border c (t=10,5) {x=t;y=6;label=3;};
+
+border d (t=5,0) {x=t;y=6;label=3;};
+
+border e (t=6,3) {x=0;y=t;label=2;};
+
+border f (t=3,0) {x=0;y=t;label=2;};
+
+border g (t=0,5) {x=t;y=3;label=4;};
+
+border h (t=3,6) {x=5;y=t;label=4;};
+
+
+int n=10;
+
+mesh malla = buildmesh(a(10*n)+b(6*n)+c(5*n)+d(5*n)+e(6*n)+f(3*n)+g(5*n)+h(3*n));
+
+plot(malla, wait=1);
+
+fespace Ph(malla,P1);
+Ph reg=region;   
+
+int cobre = reg (3.0,4.0);
+
+int aluminio = reg (7.0,3.0); 
+
+plot (reg,fill=1);
+
+real k1,k2;
+k1=14;          
+k2=60;
+
+fespace Vh(malla,P1);
+
+Vh u,k,v,uu;
+
+
+problem Calor(u,v) =
+int2d (malla) (k*dx(u)*dx(v)+k*dy(u)*dy(v))
+ + on (3,u=20)
+ + on (1,u=80)
+ + on (2,u=20);
+ 
+k = k1*(region==cobre)+k2*(region==aluminio);
+ 
+Calor;
+   
+x=7.0;
+y=3.0;
+uu=u(x,y); // temperatura en la interfase corcho-vidrio
+cout << " u = " <<uu<<endl; // plotea en pantalla
+plot(u,nbiso=40,value=1);

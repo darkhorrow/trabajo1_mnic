@@ -47,15 +47,6 @@ int aluminio = reg (7.0,3.0);
 
 plot (reg,fill=1);
 
-real k1,k2;
-k1=14;          
-k2=60;
-
-real h1,h2,ufluid;
-h1=60;
-h2=14;
-ufluid=80;
-
 
 //////////////////////////////////////////
 
@@ -63,39 +54,64 @@ real t, T=10., dt=0.1;
 
 real aa = 1.0;
 
-real epsilon=1.e-12;
+real hc = 14.;
+real ha = 60.;
 
 real emisivity = 0.3;
+real sigma = 5.6704*1e-8;
+real epsilon=1.e-6;
+
+real uf1 = 20 + 273.15;
+real uf2 = 80 + 273.15; //Temperatura UR del foco caliente [ºK]
+
 
 fespace Vh(malla,P1);
 
-Vh u,uoldt,k,v,uu;
+Vh u,uold,uoldt,B,k,v,uu,error;
 
 
+problem calor(u,v) =
+int2d(malla)(epsilon*u*v) +
+int2d (malla)(aa*u*v/dt) - int2d(malla)(aa*uoldt*v/dt) +
+int2d (malla) (k*dx(u)*dx(v)+k*dy(u)*dy(v)) +
 
-problem calor (u,v) =
-int2d(malla)(epsilon*u*v)+
-int2d (malla)  (aa*u*v/dt ) - int2d(malla) (aa*uoldt*v/dt)+
-int2d (malla)(1*dx(u)*dx(v)+1*dy(u)*dy(v))
-
-
-+ int1d(malla,1)(h1*u*v) -int1d(malla,1)(h1*ufluid*v)
-
- + on (3,u=20)
- + on (1,u=80)
- + on (2,u=20);
+int1d(malla,3) (hc*u*v) - int1d(malla,3) (hc*uf1*v) +
+int1d(malla,2) (hc*u*v) - int1d(malla,2) (hc*uf1*v) +
+int1d(malla,1) (ha*u*v) - int1d(malla,1) (ha*uf2*v) +
+int1d(malla,1) (sigma*emisivity*B*u*v) - int1d(malla,1) (sigma*emisivity*B*uf2*v);
  
-k = k1*(region==cobre)+k2*(region==aluminio);
- 
-uoldt=20;
+for(real t=0;t<T;t+=dt) {
 
-for(t=0;t<T;t+=dt) { 
-    calor; // problema lineal
-    uoldt=u;
-    plot(uoldt, cmm=" tiempo ="+t, nbiso=30,value=1);
+    uold=uf2;
+    real ErrorL2 = 1.; 
+    real ErrorH1 = 1.;  
+
+    while(sqrt(ErrorL2+ErrorH1) > 1.e-6) {
+        k = hc*(region==cobre)+ha*(region==aluminio);
+        B = (uold^2 + uf2^2)*(uold+uf2);
+        calor;
+        error=u-uold;
+        ErrorH1 = int2d(malla)(dx(error)^2+dy(error)^2);
+        ErrorL2 = int2d(malla)(error^2);
+        cout << " Error seminorma H1 = " <<sqrt( ErrorH1) <<endl;
+        cout << " Error L2 = " << sqrt(ErrorL2) <<endl;
+        cout << " Error norma H1 = " << sqrt(ErrorL2+ErrorH1) <<endl;
+        uold=u; 
+    }
+
+    uoldt=uold;
+
+   
     x=7.0;
     y=3.0;
-    uu=u(x,y); // temperatura en punto (x,y)    
-    cout << " u = " <<uu<<endl; // plotea en pantalla
-} 
+    uu=u(x,y); // temperatura en la interfase corcho-vidrio
+
+    cout.fixed;
+    cout.precision(1);
+    cout <<  " u = " <<(uu - 273.15) <<endl; // plotea en pantalla
+    plot(u,nbiso=40,value=1);
+
+
+ }
  
+    

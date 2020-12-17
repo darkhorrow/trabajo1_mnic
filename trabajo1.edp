@@ -15,9 +15,9 @@
 // Estudiamos el caso estacionario
 // Bordes del cobre
 
-border a (t=0,10) {x=t;y=0;label=3;};
+border a (t=0,10) {x=t;y=0;label=3;}; // parte abajo
 
-border b (t=0,6) {x=10;y=t;label=1;};
+border b (t=0,6) {x=10;y=t;label=1;}; // parte derecha 
 
 border c (t=10,5) {x=t;y=6;label=3;};
 
@@ -47,27 +47,67 @@ int aluminio = reg (7.0,3.0);
 
 plot (reg,fill=1);
 
-real k1,k2;
-k1=14;          
-k2=60;
+real hc = 14.;
+real ha = 60.;
+
+real emisivity = 0.3;
+real sigma = 5.6704*1e-8;
+real epsilon=1.e-6;
+
+real uf1 = 20 + 273.15;
+real uf2 = 80 + 273.15; //Temperatura UR del foco caliente [ºK]
 
 fespace Vh(malla,P1);
 
-Vh u,k,v,uu;
+Vh u,k,v,B,uu,uold,error;
 
 
-problem Calor(u,v) =
-int2d (malla) (k*dx(u)*dx(v)+k*dy(u)*dy(v))
- + on (3,u=20)
- + on (1,u=80)
- + on (2,u=20);
- 
-k = k1*(region==cobre)+k2*(region==aluminio);
- 
-Calor;
+problem calor(u,v) =
+int2d(malla)(epsilon*u*v) +
+int2d (malla) (k*dx(u)*dx(v)+k*dy(u)*dy(v)) +
+
+int1d(malla,3) (hc*u*v) - int1d(malla,3) (hc*uf1*v) +
+int1d(malla,2) (hc*u*v) - int1d(malla,2) (hc*uf1*v) +
+int1d(malla,1) (ha*u*v) - int1d(malla,1) (ha*uf2*v) +
+int1d(malla,1) (sigma*emisivity*B*u*v) - int1d(malla,1) (sigma*emisivity*B*uf2*v);
+
+//3 - 2
+
+//  + on (1,u=80)
+//  + on (3,u=20)
+//  + on (2,u=20);
+
+
+
+k = hc*(region==cobre)+ha*(region==aluminio);
+
+real ErrorL2 = 1.; 
+real ErrorH1 = 1.;  
+
+uold=uf2;
+
+while(sqrt(ErrorL2+ErrorH1) > 1.e-6) {
+   k = hc*(region==cobre)+ha*(region==aluminio);
+   B = (uold^2 + uf2^2)*(uold+uf2);
+   calor;
+   error=u-uold;
+	ErrorH1 = int2d(malla)(dx(error)^2+dy(error)^2);
+	ErrorL2 = int2d(malla)(error^2);
+	cout << " Error seminorma H1 = " <<sqrt( ErrorH1) <<endl;
+	cout << " Error L2 = " << sqrt(ErrorL2) <<endl;
+	cout << " Error norma H1 = " << sqrt(ErrorL2+ErrorH1) <<endl;
+	uold=u; 
+}
+
+
+
+calor;
    
 x=7.0;
 y=3.0;
 uu=u(x,y); // temperatura en la interfase corcho-vidrio
-cout << " u = " <<uu<<endl; // plotea en pantalla
+
+cout.fixed;
+cout.precision(1);
+cout <<  " u = " <<(uu - 273.15) <<endl; // plotea en pantalla
 plot(u,nbiso=40,value=1);

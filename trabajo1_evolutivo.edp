@@ -4,7 +4,7 @@
     - conveccion y radiacion fluido = 80 grados
  
  Se disponen de dos materiales, cobre y aluminio
- Puntos del cobres
+ Puntos del cobre
  a = (0,6) b = (0,3) c = (5,3) d = (5,6)
 
  Puntos del aluminio
@@ -12,57 +12,46 @@
 
 */
 
-// Estudiamos el caso estacionario
-// Bordes del cobre
-
-border a (t=0,10) {x=t;y=0;label=3;};
-
-border b (t=0,6) {x=10;y=t;label=1;};
-
-border c (t=10,5) {x=t;y=6;label=3;};
-
-border d (t=5,0) {x=t;y=6;label=3;};
-
-border e (t=6,3) {x=0;y=t;label=2;};
-
-border f (t=3,0) {x=0;y=t;label=2;};
-
-border g (t=0,5) {x=t;y=3;label=4;};
-
-border h (t=3,6) {x=5;y=t;label=4;};
-
-
 int n=10;
 
+
+border a (t=0,10) {x=t;y=0;label=3;};
+border b (t=0,6) {x=10;y=t;label=1;};
+border c (t=10,5) {x=t;y=6;label=3;};
+border d (t=5,0) {x=t;y=6;label=3;};
+border e (t=6,3) {x=0;y=t;label=2;};
+border f (t=3,0) {x=0;y=t;label=2;};
+border g (t=0,5) {x=t;y=3;label=4;};
+border h (t=3,6) {x=5;y=t;label=4;};
+
 mesh malla = buildmesh(a(10*n)+b(6*n)+c(5*n)+d(5*n)+e(6*n)+f(3*n)+g(5*n)+h(3*n));
+
 
 plot(malla, wait=1);
 
 fespace Ph(malla,P1);
 Ph reg=region;   
 
-int cobre = reg (3.0,4.0);
+int Cu = reg (3.0,4.0);
 
-int aluminio = reg (7.0,3.0); 
+int Al = reg (7.0,3.0); 
 
 plot (reg,fill=1);
 
-
-//////////////////////////////////////////
 
 real t, T=10., dt=0.1;
 
 real aa = 1.0;
 
-real hc = 14.;
-real ha = 60.;
+real hCu = 14.;
+real hAl = 60.;
 
 real emisivity = 0.3;
 real sigma = 5.6704*1e-8;
 real epsilon=1.e-6;
 
 real uf1 = 20 + 273.15;
-real uf2 = 80 + 273.15; //Temperatura UR del foco caliente [ºK]
+real uf2 = 80 + 273.15;
 
 
 fespace Vh(malla,P1);
@@ -70,32 +59,32 @@ fespace Vh(malla,P1);
 Vh u,uold,uoldt,B,k,v,uu,error;
 
 
-problem calor(u,v) =
+problem heat(u,v) =
 int2d(malla)(epsilon*u*v) +
 int2d (malla)(aa*u*v/dt) - int2d(malla)(aa*uoldt*v/dt) +
 int2d (malla) (k*dx(u)*dx(v)+k*dy(u)*dy(v)) +
 
-int1d(malla,3) (hc*u*v) - int1d(malla,3) (hc*uf1*v) +
-int1d(malla,2) (hc*u*v) - int1d(malla,2) (hc*uf1*v) +
-int1d(malla,1) (ha*u*v) - int1d(malla,1) (ha*uf2*v) +
+int1d(malla,3) (hCu*u*v) - int1d(malla,3) (hCu*uf1*v) +
+int1d(malla,2) (hCu*u*v) - int1d(malla,2) (hCu*uf1*v) +
+int1d(malla,1) (hAl*u*v) - int1d(malla,1) (hAl*uf2*v) +
 int1d(malla,1) (sigma*emisivity*B*u*v) - int1d(malla,1) (sigma*emisivity*B*uf2*v);
  
 for(real t=0;t<T;t+=dt) {
 
     uold=uf2;
-    real ErrorL2 = 1.; 
-    real ErrorH1 = 1.;  
+    real errorL2 = 1.; 
+    real errorH1 = 1.;  
 
-    while(sqrt(ErrorL2+ErrorH1) > 1.e-6) {
-        k = hc*(region==cobre)+ha*(region==aluminio);
+    while(sqrt(errorL2+errorH1) > 1.e-6) {
+        k = hCu*(region==Cu)+hAl*(region==Al);
         B = (uold^2 + uf2^2)*(uold+uf2);
-        calor;
+        heat;
         error=u-uold;
-        ErrorH1 = int2d(malla)(dx(error)^2+dy(error)^2);
-        ErrorL2 = int2d(malla)(error^2);
-        cout << " Error seminorma H1 = " <<sqrt( ErrorH1) <<endl;
-        cout << " Error L2 = " << sqrt(ErrorL2) <<endl;
-        cout << " Error norma H1 = " << sqrt(ErrorL2+ErrorH1) <<endl;
+        errorH1 = int2d(malla)(dx(error)^2+dy(error)^2);
+        errorL2 = int2d(malla)(error^2);
+        cout << " Error seminorma H1 = " <<sqrt( errorH1) <<endl;
+        cout << " Error L2 = " << sqrt(errorL2) <<endl;
+        cout << " Error norma H1 = " << sqrt(errorL2+errorH1) <<endl;
         uold=u; 
     }
 
@@ -104,11 +93,11 @@ for(real t=0;t<T;t+=dt) {
    
     x=7.0;
     y=3.0;
-    uu=u(x,y); // temperatura en la interfase corcho-vidrio
+    uu=u(x,y);
 
     cout.fixed;
     cout.precision(1);
-    cout <<  " u = " <<(uu - 273.15) <<endl; // plotea en pantalla
+    cout <<  " u = " <<(uu - 273.15) <<endl;
     plot(u,nbiso=40,value=1);
 
 

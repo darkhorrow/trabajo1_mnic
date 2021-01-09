@@ -14,7 +14,6 @@
 
 int n=10;
 
-
 border a (t=0,10) {x=t;y=0;label=3;};
 border b (t=0,6) {x=10;y=t;label=1;};
 border c (t=10,5) {x=t;y=6;label=3;};
@@ -38,10 +37,7 @@ int Al = reg (7.0,3.0);
 
 plot (reg,fill=1);
 
-
-real t, T=10., dt=0.1;
-
-real aa = 1.0;
+real t, T=300000., dt=0.5;
 
 real hCu = 14.;
 real hAl = 60.;
@@ -56,12 +52,13 @@ real uf2 = 80 + 273.15;
 
 fespace Vh(malla,P1);
 
-Vh u,uold,uoldt,B,k,v,uu,error;
+// Editado
+Vh u,uold,uoldt,B,k,v,uu,error,kCu,kAl,dCu,dAl,capCu,capAl,den,cap;
 
 
 problem heat(u,v) =
 int2d(malla)(epsilon*u*v) +
-int2d (malla)(aa*u*v/dt) - int2d(malla)(aa*uoldt*v/dt) +
+int2d (malla)(den*cap*u*v/dt) - int2d(malla)(den*cap*uoldt*v/dt) +
 int2d (malla) (k*dx(u)*dx(v)+k*dy(u)*dy(v)) +
 
 int1d(malla,3) (hCu*u*v) - int1d(malla,3) (hCu*uf1*v) +
@@ -69,14 +66,27 @@ int1d(malla,2) (hCu*u*v) - int1d(malla,2) (hCu*uf1*v) +
 int1d(malla,1) (hAl*u*v) - int1d(malla,1) (hAl*uf2*v) +
 int1d(malla,1) (sigma*emisivity*B*u*v) - int1d(malla,1) (sigma*emisivity*B*uf2*v);
  
+kCu = 380.;
+kAl = 205.;
+
+dCu = 8960.;
+dAl = 2700.;
+
+capCu = 385.;
+capAl = 897.;
+
+uoldt=310;
+ 
 for(real t=0;t<T;t+=dt) {
 
-    uold=uf2;
+    uold=310;
     real errorL2 = 1.; 
     real errorH1 = 1.;  
 
     while(sqrt(errorL2+errorH1) > 1.e-6) {
-        k = hCu*(region==Cu)+hAl*(region==Al);
+        k = kCu*(region==Cu)+kAl*(region==Al);
+		den = dCu*(region==Cu)+dAl*(region==Al);
+		cap = capCu*(region==Cu)+capAl*(region==Al);
         B = (uold^2 + uf2^2)*(uold+uf2);
         heat;
         error=u-uold;
